@@ -1,33 +1,88 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import React from "react";
+import { View } from "react-native";
+import { useTheme } from "react-native-paper";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { HapticTab } from "@/ui/haptic-tab";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          height: 76,
+          paddingTop: 8,
+          paddingBottom: 10,
+        },
+        tabBarBackground: () => (
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              overflow: "hidden",
+            }}
+          />
+        ),
         headerShown: false,
         tabBarButton: HapticTab,
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="silverware-fork-knife"
+              color={color}
+              size={size ?? 26}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="add"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Add Recipe",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="plus-circle"
+              color={color}
+              size={size ?? 26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          title: "Favorites",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="heart"
+              color={color}
+              size={size ?? 26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: "AI",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="robot" color={color} size={size ?? 26} />
+          ),
         }}
       />
     </Tabs>
