@@ -74,9 +74,10 @@ export async function exportRecipesToJson(recipes: Recipe[]) {
   dir.create({ intermediates: true, idempotent: true });
 
   const fileName = `nepchefx-recipes_${makeFileSafeStamp()}.json`;
-  const out = dir.createFile(fileName, 'application/json');
+  const out = new File(dir, fileName);
   out.create({ overwrite: true });
-  out.write(JSON.stringify(env, null, 2), { encoding: 'utf8' });
+  // Native `File.write` only accepts the payload (one arg); a second `encoding` object triggers InvalidArgsNumberException on iOS.
+  out.write(JSON.stringify(env, null, 2));
 
   if ((await Sharing.isAvailableAsync()) && Platform.OS !== 'web') {
     await Sharing.shareAsync(out.uri, {

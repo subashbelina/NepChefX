@@ -11,7 +11,11 @@ import {
   setRecipeFavorite,
 } from '@/services/recipes-db';
 import { exportRecipesToJson, pickAndReadRecipesBackup } from '@/services/recipes-backup';
-import { isAppManagedRecipeImage, persistPickedCoverImage } from '@/services/recipe-images';
+import {
+  deleteStoredRecipeCover,
+  isAppManagedRecipeImage,
+  persistPickedCoverImage,
+} from '@/services/recipe-images';
 import { isSupabaseConfigured } from '@/services/supabase';
 import { uploadRecipeImageToSupabase } from '@/services/recipe-images-supabase';
 import {
@@ -37,6 +41,8 @@ type RecipesContextValue = {
   addRecipe: (input: AddRecipeInput) => void;
   deleteRecipe: (id: string) => void;
   toggleFavorite: (id: string) => void;
+  /** `imageUri` from the image picker, or `undefined` to clear the cover. */
+  updateRecipeCover: (id: string, imageUri: string | undefined) => void;
   getById: (id: string) => Recipe | undefined;
   exportBackup: () => Promise<{ uri: string; fileName: string; count: number }>;
   importBackup: () => Promise<{ imported: number; total: number; pickedName: string } | null>;
@@ -53,6 +59,20 @@ function splitLines(text: string) {
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/** Supabase rows often omit `image_uri` while the device has a persisted file — don’t wipe local covers. */
+function mergeRemotePreservingLocalFileCovers(remoteList: Recipe[], localList: Recipe[]): Recipe[] {
+  const localById = new Map(localList.map((r) => [r.id, r]));
+  return remoteList.map((r) => {
+    if (r.imageUri?.trim()) return r;
+    const loc = localById.get(r.id);
+    const localUri = loc?.imageUri?.trim();
+    if (localUri && isAppManagedRecipeImage(localUri)) {
+      return { ...r, imageUri: localUri };
+    }
+    return r;
+  });
 }
 
 const seedRecipes: Recipe[] = [
@@ -84,6 +104,8 @@ const useNativeSqlite = Platform.OS !== 'web';
 
 export function RecipesProvider({ children }: { children: React.ReactNode }) {
   const [recipes, setRecipes] = useState<Recipe[]>(() => (useNativeSqlite ? [] : seedRecipes));
+  const recipesRef = useRef(recipes);
+  recipesRef.current = recipes;
   const dbReady = useRef<Promise<SQLiteDatabase> | null>(null);
 
   useEffect(() => {
@@ -114,8 +136,9 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           if (remote.length > 0) {
-            for (const r of remote) await insertRecipe(db, r);
-            setRecipes(remote);
+            const merged = mergeRemotePreservingLocalFileCovers(remote, list);
+            for (const r of merged) await insertRecipe(db, r);
+            setRecipes(merged);
           }
         } catch {
           // Ignore cloud sync errors; app continues offline/local.
@@ -254,6 +277,68 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     [withDb],
   );
 
+  const updateRecipeCover = useCallback((id: string, pickedUri: string | undefined) => {
+    void (async () => {
+      const row = recipesRef.current.find((r) => r.id === id);
+      if (!row) return;
+
+      const previousUri = row.imageUri;
+
+      const syncCoverToCloud = (saved: Recipe) => {
+        void (async () => {
+          if (!isSupabaseConfigured()) return;
+          try {
+            if (saved.imageUri && Platform.OS !== 'web' && !saved.imageUri.startsWith('http')) {
+              const up = await uploadRecipeImageToSupabase({
+                localUri: saved.imageUri,
+                recipeId: id,
+                fileBaseName: saved.title,
+              });
+              const cloudRecipe: Recipe = { ...saved, imageUri: up.publicUrl };
+              setRecipes((prev) => prev.map((r) => (r.id === id ? cloudRecipe : r)));
+              await withDb((db) => insertRecipe(db, cloudRecipe));
+              await supabaseUpsertRecipeWithImageMeta(cloudRecipe, { imageBucket: up.bucket, imagePath: up.path });
+              return;
+            }
+            await supabaseUpsertRecipe(saved);
+          } catch {
+            // Ignore cloud failures; local save already succeeded.
+          }
+        })();
+      };
+
+      if (pickedUri === undefined) {
+        deleteStoredRecipeCover(previousUri);
+        const saved: Recipe = { ...row, imageUri: undefined };
+        setRecipes((prev) => prev.map((r) => (r.id === id ? saved : r)));
+        await withDb((db) => insertRecipe(db, saved));
+        syncCoverToCloud(saved);
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        const saved: Recipe = { ...row, imageUri: pickedUri };
+        setRecipes((prev) => prev.map((r) => (r.id === id ? saved : r)));
+        await withDb((db) => insertRecipe(db, saved));
+        syncCoverToCloud(saved);
+        return;
+      }
+
+      try {
+        const stable = await persistPickedCoverImage({ pickedUri, recipeId: id, title: row.title });
+        if (previousUri && previousUri !== stable) {
+          deleteStoredRecipeCover(previousUri);
+        }
+        const saved: Recipe = { ...row, imageUri: stable };
+        setRecipes((prev) => prev.map((r) => (r.id === id ? saved : r)));
+        await withDb((db) => insertRecipe(db, saved));
+        syncCoverToCloud(saved);
+      } catch {
+        // Never persist picker temp URIs — they stop working after reload.
+      }
+    })();
+  }, [withDb]);
+
   const getById = useCallback((id: string) => recipes.find((r) => r.id === id), [recipes]);
 
   const exportBackup = useCallback(async () => {
@@ -287,8 +372,17 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<RecipesContextValue>(
-    () => ({ recipes, addRecipe, deleteRecipe, toggleFavorite, getById, exportBackup, importBackup }),
-    [recipes, addRecipe, deleteRecipe, toggleFavorite, getById, exportBackup, importBackup],
+    () => ({
+      recipes,
+      addRecipe,
+      deleteRecipe,
+      toggleFavorite,
+      updateRecipeCover,
+      getById,
+      exportBackup,
+      importBackup,
+    }),
+    [recipes, addRecipe, deleteRecipe, toggleFavorite, updateRecipeCover, getById, exportBackup, importBackup],
   );
 
   return <RecipesContext.Provider value={value}>{children}</RecipesContext.Provider>;

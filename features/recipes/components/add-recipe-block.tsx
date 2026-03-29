@@ -33,8 +33,8 @@ export function AddRecipeBlock({
       ]}>
       <View style={styles.headerRow}>
         {typeof step === 'number' ? (
-          <View style={[styles.badge, { backgroundColor: theme.colors.primaryContainer }]}>
-            <Text variant="labelLarge" style={{ color: theme.colors.onPrimaryContainer, fontWeight: '700' }}>
+          <View style={[styles.badge, { backgroundColor: theme.colors.secondaryContainer }]}>
+            <Text variant="labelLarge" style={{ color: theme.colors.onSecondaryContainer, fontWeight: '700' }}>
               {step}
             </Text>
           </View>
@@ -59,8 +59,16 @@ export function AddRecipeBlock({
 export function AddRecipeNest({ label, children }: { label: string; children: React.ReactNode }) {
   const theme = useTheme();
   return (
-    <View style={[styles.nest, { backgroundColor: theme.colors.surfaceVariant }]}>
-      <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+    <View
+      style={[
+        styles.nest,
+        {
+          backgroundColor: theme.colors.secondaryContainer,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.outlineVariant,
+        },
+      ]}>
+      <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer, marginBottom: 8 }}>
         {label}
       </Text>
       {children}

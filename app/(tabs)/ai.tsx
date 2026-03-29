@@ -1,8 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
-import React, { useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { IconButton, Surface, Text, TextInput, useTheme } from 'react-native-paper';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Platform, StyleSheet, View } from 'react-native';
+import { IconButton, useTheme } from 'react-native-paper';
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -12,7 +12,15 @@ import {
 } from 'expo-audio';
 
 import { UI } from '@/constants/ui-layout';
-import { AddRecipeSelectChip } from '@/features/recipes/components/add-recipe-select-chip';
+import { AiChatMessageRow } from '@/features/ai/components/ai-chat-message-row';
+import { AiComposerBar } from '@/features/ai/components/ai-composer-bar';
+import { AiCuisineCard } from '@/features/ai/components/ai-cuisine-card';
+import {
+  formatRecipeText,
+  labelCuisine,
+  makeChatId,
+  type ChatMessage,
+} from '@/features/ai/chat-model';
 import {
   extractIngredientsFromImageOpenAI,
   generateRecipeWithAi,
@@ -23,40 +31,6 @@ import {
 } from '@/services/ai-recipe';
 import { useRecipes } from '@/state/recipes';
 import { AppHeader } from '@/ui/app-header';
-
-type ChatRole = 'user' | 'assistant' | 'system';
-
-type ChatMessage = {
-  id: string;
-  role: ChatRole;
-  text: string;
-  recipe?: { title: string; ingredients: string[]; steps: string[]; description?: string };
-};
-
-function makeId() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function formatRecipeText(recipe: NonNullable<ChatMessage['recipe']>) {
-  const lines: string[] = [];
-  lines.push(recipe.title);
-  if (recipe.description) lines.push(recipe.description);
-  lines.push('');
-  lines.push('Ingredients');
-  for (const i of recipe.ingredients) lines.push(`- ${i}`);
-  lines.push('');
-  lines.push('Steps');
-  recipe.steps.forEach((s, idx) => lines.push(`${idx + 1}. ${s}`));
-  return lines.join('\n');
-}
-
-function labelCuisine(c: string) {
-  if (c === 'any-asian') return 'Any Asian';
-  return c
-    .split('-')
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
-}
 
 export default function AiChatScreen() {
   const theme = useTheme();
@@ -104,7 +78,7 @@ export default function AiChatScreen() {
   const canSend = aiReady && !busy;
 
   const pushSystem = (text: string) => {
-    setMessages((prev) => [...prev, { id: makeId(), role: 'system', text }]);
+    setMessages((prev) => [...prev, { id: makeChatId(), role: 'system', text }]);
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   };
 
@@ -113,7 +87,7 @@ export default function AiChatScreen() {
     const text = draft.trim();
     if (!text) return;
 
-    const userMsg: ChatMessage = { id: makeId(), role: 'user', text };
+    const userMsg: ChatMessage = { id: makeChatId(), role: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setDraft('');
 
@@ -123,7 +97,7 @@ export default function AiChatScreen() {
       const mode = ingredients.length > 0 ? 'from-ingredients' : 'surprise';
       const res = await generateRecipeWithAi(ingredients, { mode, creative, cuisine });
       const assistant: ChatMessage = {
-        id: makeId(),
+        id: makeChatId(),
         role: 'assistant',
         text: formatRecipeText(res),
         recipe: res,
@@ -134,7 +108,7 @@ export default function AiChatScreen() {
       const errText = e?.message ? String(e.message) : 'AI request failed';
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: 'assistant', text: `Sorry — ${errText}` },
+        { id: makeChatId(), role: 'assistant', text: `Sorry — ${errText}` },
       ]);
     } finally {
       setBusy(false);
@@ -176,11 +150,11 @@ export default function AiChatScreen() {
         return;
       }
 
-      const userMsg: ChatMessage = { id: makeId(), role: 'user', text: `Photo ingredients: ${ingredients.join(', ')}` };
+      const userMsg: ChatMessage = { id: makeChatId(), role: 'user', text: `Photo ingredients: ${ingredients.join(', ')}` };
       setMessages((prev) => [...prev, userMsg]);
 
       const ai = await generateRecipeWithAi(ingredients, { mode: 'from-ingredients', creative, cuisine });
-      const assistant: ChatMessage = { id: makeId(), role: 'assistant', text: formatRecipeText(ai), recipe: ai };
+      const assistant: ChatMessage = { id: makeChatId(), role: 'assistant', text: formatRecipeText(ai), recipe: ai };
       setMessages((prev) => [...prev, assistant]);
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     } catch (e: any) {
@@ -243,75 +217,26 @@ export default function AiChatScreen() {
     }
   };
 
-  const onSaveRecipe = (m: ChatMessage) => {
-    if (!m.recipe) return;
-    addRecipe({
-      title: m.recipe.title,
-      ingredientsText: m.recipe.ingredients.join('\n'),
-      stepsText: m.recipe.steps.join('\n'),
-    });
-    setMessages((prev) => [
-      ...prev,
-      { id: makeId(), role: 'system', text: 'Saved to your recipes.' },
-    ]);
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-  };
+  const onSaveRecipe = useCallback(
+    (m: ChatMessage) => {
+      if (!m.recipe) return;
+      addRecipe({
+        title: m.recipe.title,
+        ingredientsText: m.recipe.ingredients.join('\n'),
+        stepsText: m.recipe.steps.join('\n'),
+      });
+      setMessages((prev) => [...prev, { id: makeChatId(), role: 'system', text: 'Saved to your recipes.' }]);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    },
+    [addRecipe],
+  );
 
-  const renderItem = ({ item }: { item: ChatMessage }) => {
-    const isUser = item.role === 'user';
-    const isSystem = item.role === 'system';
-    const bubbleBg = isSystem
-      ? theme.colors.surfaceVariant
-      : isUser
-        ? theme.colors.primaryContainer
-        : theme.colors.surface;
-    const bubbleText = isSystem
-      ? theme.colors.onSurfaceVariant
-      : isUser
-        ? theme.colors.onPrimaryContainer
-        : theme.colors.onSurface;
-
-    return (
-      <View style={[styles.row, isUser ? styles.rowRight : styles.rowLeft]}>
-        <Surface
-          elevation={isSystem ? 0 : 1}
-          style={[
-            styles.bubble,
-            {
-              backgroundColor: bubbleBg,
-              borderColor: theme.colors.outlineVariant,
-            },
-            isUser ? styles.userBubble : null,
-            isSystem ? styles.systemBubble : null,
-          ]}
-        >
-          <Text variant="bodyMedium" style={{ color: bubbleText, lineHeight: 20 }}>
-            {item.text}
-          </Text>
-
-          {item.role === 'assistant' && item.recipe ? (
-            <View style={styles.bubbleActions}>
-              <Surface
-                elevation={0}
-                style={[
-                  styles.savePill,
-                  { backgroundColor: theme.colors.secondaryContainer, borderColor: theme.colors.outlineVariant },
-                ]}
-              >
-                <Text
-                  onPress={() => onSaveRecipe(item)}
-                  variant="labelLarge"
-                  style={{ color: theme.colors.onSecondaryContainer }}
-                >
-                  Save recipe
-                </Text>
-              </Surface>
-            </View>
-          ) : null}
-        </Surface>
-      </View>
-    );
-  };
+  const renderItem = useCallback(
+    ({ item }: { item: ChatMessage }) => (
+      <AiChatMessageRow item={item} onSaveRecipe={onSaveRecipe} />
+    ),
+    [onSaveRecipe],
+  );
 
   return (
     <View style={styles.container}>
@@ -323,55 +248,17 @@ export default function AiChatScreen() {
             onPress={() => setCreative((v) => !v)}
             disabled={!aiReady || busy}
             accessibilityLabel="Toggle variation"
-            iconColor={creative ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            iconColor={creative ? theme.colors.secondary : theme.colors.onSurfaceVariant}
           />
         }
       />
 
-      <View style={styles.cuisineWrap}>
-        <Surface
-          elevation={1}
-          style={[
-            styles.cuisineCard,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
-          ]}>
-          <View style={styles.cuisineHead}>
-            <View style={styles.cuisineHeadLeft}>
-              <Text variant="titleSmall" style={{ fontWeight: '800' }}>
-                Cuisine
-              </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Pick a style — or keep it broad.
-              </Text>
-            </View>
-            <Surface
-              elevation={0}
-              style={[
-                styles.cuisineBadge,
-                { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.outlineVariant },
-              ]}>
-              <Text variant="labelLarge" style={{ color: theme.colors.onPrimaryContainer }}>
-                {labelCuisine(cuisine)}
-              </Text>
-            </Surface>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cuisineChipScroll}
-          >
-            {cuisines.map((c) => (
-              <AddRecipeSelectChip
-                key={c}
-                label={labelCuisine(c)}
-                selected={cuisine === c}
-                onPress={() => setCuisine(c)}
-              />
-            ))}
-          </ScrollView>
-        </Surface>
-      </View>
+      <AiCuisineCard
+        cuisines={cuisines}
+        cuisine={cuisine}
+        onSelectCuisine={(c) => setCuisine(c as (typeof cuisines)[number])}
+        labelCuisine={labelCuisine}
+      />
 
       <FlatList
         ref={listRef}
@@ -383,125 +270,22 @@ export default function AiChatScreen() {
         keyboardShouldPersistTaps="handled"
       />
 
-      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', default: undefined })}>
-        <Surface
-          elevation={2}
-          style={[
-            styles.composer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
-            },
-          ]}
-        >
-          <View style={styles.leftTools}>
-            <IconButton
-              icon="camera"
-              onPress={takePhotoAndCook}
-              disabled={!aiReady || busy}
-              accessibilityLabel="Take photo"
-              style={styles.toolBtn}
-            />
-            <IconButton
-              icon={recorderState.isRecording ? 'microphone' : 'microphone-outline'}
-              onPress={toggleMic}
-              disabled={!aiReady || busy}
-              accessibilityLabel="Voice input"
-              iconColor={recorderState.isRecording ? theme.colors.primary : undefined}
-              style={styles.toolBtn}
-            />
-          </View>
-          <TextInput
-            mode="outlined"
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Ingredients or ask for a surprise recipe…"
-            multiline
-            outlineColor={theme.colors.outlineVariant}
-            activeOutlineColor={theme.colors.primary}
-            style={styles.input}
-            editable={aiReady && !busy}
-          />
-          <IconButton
-            icon="send"
-            onPress={send}
-            disabled={!aiReady || busy || !draft.trim()}
-            loading={busy}
-            accessibilityLabel="Send"
-          />
-        </Surface>
-      </KeyboardAvoidingView>
+      <AiComposerBar
+        draft={draft}
+        onChangeDraft={setDraft}
+        busy={busy}
+        aiReady={aiReady}
+        isRecording={recorderState.isRecording}
+        onSend={send}
+        onTakePhoto={takePhotoAndCook}
+        onToggleMic={toggleMic}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  cuisineWrap: { paddingHorizontal: UI.screenPadding, paddingTop: 4 },
-  cuisineCard: {
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  cuisineHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 10,
-  },
-  cuisineHeadLeft: { flex: 1, gap: 2 },
-  cuisineBadge: {
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  cuisineChipScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingBottom: 2,
-    paddingRight: 6,
-  },
   list: { padding: UI.screenPadding, paddingBottom: 12, gap: 10 },
-  row: { flexDirection: 'row' },
-  rowLeft: { justifyContent: 'flex-start' },
-  rowRight: { justifyContent: 'flex-end' },
-  bubble: {
-    maxWidth: '92%',
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  userBubble: { borderTopRightRadius: 8 },
-  systemBubble: { alignSelf: 'center', maxWidth: '100%', borderRadius: 14 },
-  bubbleActions: { marginTop: 10, flexDirection: 'row', justifyContent: 'flex-start' },
-  savePill: {
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  composer: {
-    margin: UI.screenPadding,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  leftTools: {
-    flexDirection: 'column',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 2,
-    paddingBottom: 2,
-  },
-  toolBtn: { margin: 0 },
-  input: { flex: 1, backgroundColor: 'transparent' },
 });
 

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Brand } from '@/constants/brand-colors';
 import { UI, heroCardShadow } from '@/constants/ui-layout';
 import { BrandLogo } from '@/ui/brand-logo';
 
@@ -40,7 +41,7 @@ export function HomeHero({
         <View style={[styles.cardClip, { borderRadius: UI.heroCardRadius }]}>
           <View style={styles.heroStack}>
             <LinearGradient
-              colors={['#E65100', '#D84315', '#BF360C']}
+              colors={[...Brand.heroGradient]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}

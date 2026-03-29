@@ -78,7 +78,7 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
         style={styles.ingredientsInput}
         placeholder="One per line, or commas: eggs, tomato, rice"
         outlineColor={theme.colors.outline}
-        activeOutlineColor={theme.colors.primary}
+        activeOutlineColor={theme.colors.secondary}
       />
 
       <AddRecipeNest label="AI preferences (optional)">
@@ -107,7 +107,7 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
                 label={labelMeal(m)}
                 selected={mealFocus === m}
                 onPress={() => onChangeMealFocus(m)}
-                tone="secondary"
+                tone="primary"
               />
             </View>
           ))}
@@ -133,7 +133,7 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
                 label={labelCuisine(c)}
                 selected={cuisine === c}
                 onPress={() => onChangeCuisine(c)}
-                tone="secondary"
+                tone="cuisine"
               />
             </View>
           ))}
@@ -147,7 +147,7 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
           onChangeText={onChangeExtraNotes}
           placeholder="e.g. vegetarian, quick meal"
           outlineColor={theme.colors.outline}
-          activeOutlineColor={theme.colors.primary}
+          activeOutlineColor={theme.colors.secondary}
         />
       </AddRecipeNest>
 
@@ -165,14 +165,28 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
         </HelperText>
       )}
 
-      <View style={[styles.creativeRow, { borderColor: theme.colors.outlineVariant }]}>
+      <View
+        style={[
+          styles.creativeRow,
+          {
+            borderColor: theme.colors.secondary,
+            backgroundColor: theme.colors.secondaryContainer,
+          },
+        ]}>
         <View style={styles.creativeText}>
-          <Text variant="labelLarge">New variation</Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          <Text variant="labelLarge" style={{ color: theme.colors.onSecondaryContainer }}>
+            New variation
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, opacity: 0.85 }}>
             Makes the AI a bit more creative.
           </Text>
         </View>
-        <Switch value={creative} onValueChange={onChangeCreative} />
+        <Switch
+          value={creative}
+          onValueChange={onChangeCreative}
+          thumbColor={creative ? theme.colors.secondary : theme.colors.outline}
+          trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.secondaryContainer }}
+        />
       </View>
 
       <Button
@@ -181,8 +195,8 @@ export function AddRecipeIngredientsAiBlock<TMeal extends string, TSpice extends
         disabled={!canAi}
         loading={aiBusy}
         icon="robot"
-        buttonColor={theme.colors.primary}
-        textColor={theme.colors.onPrimary}
+        buttonColor={theme.colors.secondary}
+        textColor={theme.colors.onSecondary}
         style={styles.fullBtn}
         contentStyle={styles.btnContent}>
         Generate with AI

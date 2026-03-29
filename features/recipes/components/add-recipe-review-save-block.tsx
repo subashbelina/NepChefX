@@ -35,7 +35,7 @@ export function AddRecipeReviewSaveBlock({
         dense
         placeholder="Recipe name"
         outlineColor={theme.colors.outline}
-        activeOutlineColor={theme.colors.primary}
+        activeOutlineColor={theme.colors.secondary}
       />
       <TextInput
         label="Steps"
@@ -47,7 +47,7 @@ export function AddRecipeReviewSaveBlock({
         style={styles.stepsInput}
         placeholder="One step per line"
         outlineColor={theme.colors.outline}
-        activeOutlineColor={theme.colors.primary}
+        activeOutlineColor={theme.colors.secondary}
       />
       <HelperText type="info" padding="none" style={styles.ingredientsReminder}>
         Ingredients stay in step 1 — scroll up if you need to edit the list.

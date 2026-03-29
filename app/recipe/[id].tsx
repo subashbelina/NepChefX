@@ -1,8 +1,9 @@
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
-import { Appbar, Button, Chip, Surface, Text, useTheme } from 'react-native-paper';
+import { Appbar, Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
 
 import { SectionCard } from '@/features/recipes/components/section-card';
 import { UI } from '@/constants/ui-layout';
@@ -14,7 +15,7 @@ import { BrandLogoWideFallback } from '@/ui/brand-logo';
 export default function RecipeDetailScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ id?: string }>();
-  const { getById, toggleFavorite, deleteRecipe } = useRecipes();
+  const { getById, toggleFavorite, deleteRecipe, updateRecipeCover } = useRecipes();
 
   const recipe = useMemo(() => {
     const id = params.id;
@@ -43,6 +44,28 @@ export default function RecipeDetailScreen() {
       </View>
     );
   }
+
+  const pickCoverImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.9,
+    });
+
+    if (result.canceled) return;
+    const uri = result.assets[0]?.uri;
+    if (uri) updateRecipeCover(recipe.id, uri);
+  };
+
+  const confirmRemoveCover = () => {
+    Alert.alert('Remove cover photo?', 'The recipe stays; only the picture is cleared.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => updateRecipeCover(recipe.id, undefined) },
+    ]);
+  };
 
   const confirmDelete = () => {
     Alert.alert(
@@ -98,15 +121,34 @@ export default function RecipeDetailScreen() {
           <View style={[styles.heroImageClip, { borderTopLeftRadius: UI.cardRadius, borderTopRightRadius: UI.cardRadius }]}>
             {recipe.imageUri ? (
               <Image
-                source={{ uri: recipe.imageUri }}
+                key={recipe.imageUri}
+                source={{ uri: recipe.imageUri, cacheKey: recipe.imageUri }}
                 style={styles.heroImage}
                 contentFit="cover"
                 cachePolicy="memory-disk"
+                recyclingKey={recipe.imageUri}
                 transition={0}
               />
             ) : (
               <BrandLogoWideFallback height={200} />
             )}
+            <View style={[styles.heroImageActions, { backgroundColor: theme.colors.surface + 'E6' }]}>
+              <IconButton
+                icon="image-edit-outline"
+                size={22}
+                onPress={pickCoverImage}
+                accessibilityLabel={recipe.imageUri ? 'Change cover photo' : 'Add cover photo'}
+              />
+              {recipe.imageUri ? (
+                <IconButton
+                  icon="image-off-outline"
+                  size={22}
+                  iconColor={theme.colors.error}
+                  onPress={confirmRemoveCover}
+                  accessibilityLabel="Remove cover photo"
+                />
+              ) : null}
+            </View>
           </View>
           <View style={styles.heroBody}>
             <Text variant="headlineSmall" style={styles.heroTitle}>
@@ -177,6 +219,16 @@ const styles = StyleSheet.create({
   heroImageClip: {
     height: 200,
     width: '100%',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroImageActions: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 28,
     overflow: 'hidden',
   },
   heroImage: { width: '100%', height: '100%' },

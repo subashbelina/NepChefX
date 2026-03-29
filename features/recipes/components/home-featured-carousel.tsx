@@ -1,17 +1,18 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Chip, Text } from 'react-native-paper';
+import { Chip, Text, useTheme } from 'react-native-paper';
 
+import { Brand } from '@/constants/brand-colors';
 import { UI } from '@/constants/ui-layout';
 import type { Recipe } from '@/state/recipes';
 
@@ -19,7 +20,7 @@ const WATERMARK = require('@/assets/images/NepChefXlogo.png');
 const AUTO_INTERVAL_MS = 4200;
 const SLIDE_HEIGHT = 192;
 
-function FeaturedSlide({
+const FeaturedSlide = memo(function FeaturedSlide({
   recipe,
   width,
   onPress,
@@ -34,7 +35,7 @@ function FeaturedSlide({
       style={({ pressed }) => [{ width }, pressed && styles.slidePressed]}
       accessibilityRole="button"
       accessibilityLabel={`Featured recipe: ${recipe.title}`}>
-      <View style={[styles.clip, { width, height: SLIDE_HEIGHT }]}>
+      <View style={[styles.clip, { width, height: SLIDE_HEIGHT, backgroundColor: Brand.carouselBackdrop }]}>
         {recipe.imageUri ? (
           <Image
             source={{ uri: recipe.imageUri }}
@@ -48,7 +49,7 @@ function FeaturedSlide({
           colors={
             recipe.imageUri
               ? ['rgba(248,248,248,0.4)', 'rgba(55,55,55,0.6)', 'rgba(10,10,10,0.94)']
-              : ['#F5F5F5', '#7A7A7A', '#121212']
+              : [...Brand.carouselNoImageGradient]
           }
           locations={recipe.imageUri ? [0, 0.48, 1] : [0, 0.42, 1]}
           start={{ x: 0.5, y: 0 }}
@@ -80,10 +81,27 @@ function FeaturedSlide({
       </View>
     </Pressable>
   );
-}
+});
+
+const CarouselRow = memo(
+  function CarouselRow({
+    recipe,
+    width,
+    onPressRecipe,
+  }: {
+    recipe: Recipe;
+    width: number;
+    onPressRecipe: (id: string) => void;
+  }) {
+    const onPress = useCallback(() => onPressRecipe(recipe.id), [onPressRecipe, recipe.id]);
+    return <FeaturedSlide recipe={recipe} width={width} onPress={onPress} />;
+  },
+  (a, b) => a.recipe === b.recipe && a.width === b.width && a.onPressRecipe === b.onPressRecipe,
+);
 
 /**
- * Full-width horizontal carousel of recipes (auto-advance + swipe). Gradient + logo watermark per slide.
+ * Horizontal featured recipes — ScrollView (not FlatList) to avoid nesting a VirtualizedList
+ * inside the home screen FlatList (major source of multi-second update warnings).
  */
 export function HomeFeaturedCarousel({
   recipes,
@@ -92,9 +110,10 @@ export function HomeFeaturedCarousel({
   recipes: Recipe[];
   onPressRecipe: (id: string) => void;
 }) {
+  const theme = useTheme();
   const { width: winW } = useWindowDimensions();
   const itemWidth = winW - UI.screenPadding * 2;
-  const listRef = useRef<FlatList<Recipe>>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const pageRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,7 +130,7 @@ export function HomeFeaturedCarousel({
     const next = (pageRef.current + 1) % recipes.length;
     pageRef.current = next;
     setPage(next);
-    listRef.current?.scrollToOffset({ offset: next * itemWidth, animated: true });
+    scrollRef.current?.scrollTo({ x: next * itemWidth, animated: true });
   }, [recipes.length, itemWidth]);
 
   const armTimer = useCallback(() => {
@@ -131,7 +150,7 @@ export function HomeFeaturedCarousel({
     if (pageRef.current > max) {
       pageRef.current = 0;
       setPage(0);
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      scrollRef.current?.scrollTo({ x: 0, animated: false });
     }
   }, [recipes.length]);
 
@@ -150,31 +169,31 @@ export function HomeFeaturedCarousel({
 
   return (
     <View style={styles.wrap}>
-      <FlatList
-        ref={listRef}
+      <ScrollView
+        ref={scrollRef}
         horizontal
-        data={recipes}
-        keyExtractor={(item) => item.id}
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
         snapToInterval={itemWidth}
         snapToAlignment="start"
         disableIntervalMomentum
         onMomentumScrollEnd={onMomentumScrollEnd}
-        getItemLayout={(_, index) => ({
-          length: itemWidth,
-          offset: itemWidth * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-          <FeaturedSlide recipe={item} width={itemWidth} onPress={() => onPressRecipe(item.id)} />
-        )}
-      />
+        keyboardShouldPersistTaps="handled">
+        {recipes.map((recipe) => (
+          <CarouselRow key={recipe.id} recipe={recipe} width={itemWidth} onPressRecipe={onPressRecipe} />
+        ))}
+      </ScrollView>
       {recipes.length > 1 ? (
         <View style={styles.dots}>
           {recipes.map((r, i) => (
-            <View key={r.id} style={[styles.dot, i === page && styles.dotActive]} />
+            <View
+              key={r.id}
+              style={[
+                styles.dot,
+                i === page && styles.dotActive,
+                i === page && { backgroundColor: theme.colors.primary },
+              ]}
+            />
           ))}
         </View>
       ) : null}
@@ -188,7 +207,6 @@ const styles = StyleSheet.create({
   clip: {
     borderRadius: UI.cardRadius,
     overflow: 'hidden',
-    backgroundColor: '#141414',
   },
   watermark: {
     ...StyleSheet.absoluteFillObject,
@@ -219,10 +237,9 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: Brand.carouselDotInactive,
   },
   dotActive: {
-    backgroundColor: '#E65100',
     width: 20,
     borderRadius: 3,
   },

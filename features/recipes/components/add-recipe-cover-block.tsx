@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Button, useTheme } from 'react-native-paper';
 
 import { AddRecipeBlock } from '@/features/recipes/components/add-recipe-block';
 import { CoverPhotoPlaceholder } from '@/features/recipes/components/cover-photo-placeholder';
@@ -14,6 +14,7 @@ export function AddRecipeCoverBlock({
   imageUri: string | undefined;
   onPickImage: () => void;
 }) {
+  const theme = useTheme();
   return (
     <AddRecipeBlock title="Cover photo" subtitle="Optional — appears on your recipe card in the list.">
       {imageUri ? (
@@ -21,7 +22,14 @@ export function AddRecipeCoverBlock({
           <View style={[styles.photoClip, { borderRadius: UI.cardRadius - 4 }]}>
             <Image source={{ uri: imageUri }} style={styles.photo} contentFit="cover" cachePolicy="memory-disk" transition={0} />
           </View>
-          <Button mode="contained-tonal" onPress={onPickImage} icon="image" compact style={styles.photoBtn}>
+          <Button
+            mode="contained-tonal"
+            onPress={onPickImage}
+            icon="image"
+            compact
+            style={styles.photoBtn}
+            buttonColor={theme.colors.secondaryContainer}
+            textColor={theme.colors.onSecondaryContainer}>
             Change photo
           </Button>
         </>

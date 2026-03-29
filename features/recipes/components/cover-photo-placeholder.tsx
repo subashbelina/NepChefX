@@ -18,13 +18,13 @@ export function CoverPhotoPlaceholder({ onPress }: { onPress: () => void }) {
       style={({ pressed }) => [
         styles.wrap,
         {
-          borderColor: theme.colors.outlineVariant,
-          backgroundColor: theme.colors.surfaceVariant,
-          opacity: pressed ? 0.9 : 1,
+          borderColor: theme.colors.secondary,
+          backgroundColor: theme.colors.secondaryContainer,
+          opacity: pressed ? 0.92 : 1,
         },
       ]}>
-      <View style={[styles.iconCircle, { backgroundColor: theme.colors.primaryContainer }]}>
-        <MaterialCommunityIcons name="image-plus-outline" size={28} color={theme.colors.primary} />
+      <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
+        <MaterialCommunityIcons name="image-plus-outline" size={28} color={theme.colors.secondary} />
       </View>
       <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
         Add cover photo

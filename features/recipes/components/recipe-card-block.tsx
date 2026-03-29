@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { IconButton, Surface, Text, useTheme } from 'react-native-paper';
 
@@ -37,10 +37,12 @@ export function RecipeCardBlock({
           <View style={[styles.imageClip, { borderTopLeftRadius: UI.cardRadius, borderTopRightRadius: UI.cardRadius }]}>
             {recipe.imageUri ? (
               <Image
-                source={{ uri: recipe.imageUri }}
+                key={recipe.imageUri}
+                source={{ uri: recipe.imageUri, cacheKey: recipe.imageUri }}
                 style={styles.image}
                 contentFit="cover"
                 cachePolicy="memory-disk"
+                recyclingKey={recipe.imageUri}
                 transition={0}
               />
             ) : (
@@ -131,3 +133,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 });
+
+/**
+ * FlatList row: stable `onPress` / `onToggleFavorite` per item so VirtualizedList can skip re-renders.
+ */
+export const RecipeCardListItem = memo(
+  function RecipeCardListItem({
+    recipe,
+    onRecipePress,
+    onToggleFavorite,
+  }: {
+    recipe: Recipe;
+    onRecipePress: (id: string) => void;
+    onToggleFavorite: (id: string) => void;
+  }) {
+    const onPress = useCallback(() => onRecipePress(recipe.id), [onRecipePress, recipe.id]);
+    const onFav = useCallback(() => onToggleFavorite(recipe.id), [onToggleFavorite, recipe.id]);
+    return <RecipeCardBlock recipe={recipe} onPress={onPress} onToggleFavorite={onFav} />;
+  },
+  (prev, next) =>
+    prev.recipe === next.recipe &&
+    prev.onRecipePress === next.onRecipePress &&
+    prev.onToggleFavorite === next.onToggleFavorite,
+);

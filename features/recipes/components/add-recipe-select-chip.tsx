@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { Chip, useTheme } from 'react-native-paper';
 
+import { Brand } from '@/constants/brand-colors';
+
 export function AddRecipeSelectChip({
   label,
   selected,
@@ -13,7 +15,7 @@ export function AddRecipeSelectChip({
   selected: boolean;
   onPress: () => void;
   prominence?: 'default' | 'high';
-  tone?: 'primary' | 'secondary' | 'tertiary';
+  tone?: 'primary' | 'secondary' | 'tertiary' | 'cuisine';
 }) {
   const theme = useTheme();
   const high = prominence === 'high';
@@ -38,18 +40,20 @@ export function AddRecipeSelectChip({
   const outlineColor = high ? theme.colors.outlineVariant : theme.colors.outline;
   const outlineWidth = high ? StyleSheet.hairlineWidth : 1;
 
-  const toneBg =
-    toneKey === 'secondary'
-      ? theme.colors.secondaryContainer
-      : toneKey === 'tertiary'
-        ? theme.colors.tertiaryContainer
-        : theme.colors.primaryContainer;
-  const toneFg =
-    toneKey === 'secondary'
-      ? theme.colors.onSecondaryContainer
-      : toneKey === 'tertiary'
-        ? theme.colors.onTertiaryContainer
-        : theme.colors.onPrimaryContainer;
+  const { toneBg, toneFg } = useMemo(() => {
+    if (toneKey === 'cuisine') {
+      return theme.dark
+        ? { toneBg: '#1E3D34', toneFg: '#B8E0C8' }
+        : { toneBg: Brand.cuisineChipContainer, toneFg: Brand.cuisineChipOnContainer };
+    }
+    if (toneKey === 'secondary') {
+      return { toneBg: theme.colors.secondaryContainer, toneFg: theme.colors.onSecondaryContainer };
+    }
+    if (toneKey === 'tertiary') {
+      return { toneBg: theme.colors.tertiaryContainer, toneFg: theme.colors.onTertiaryContainer };
+    }
+    return { toneBg: theme.colors.primaryContainer, toneFg: theme.colors.onPrimaryContainer };
+  }, [theme.dark, theme.colors, toneKey]);
 
   return (
     <Chip
