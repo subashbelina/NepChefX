@@ -2,8 +2,13 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Searchbar, Surface, useTheme } from 'react-native-paper';
 
-import { brandCyanBorder } from '@/constants/brand-chrome';
 import { UI } from '@/constants/ui-layout';
+
+import {
+  favoritesCardBorder,
+  favoritesSearchFieldColors,
+  favoritesWarmBackground,
+} from '../favorites-chrome';
 
 type Props = {
   query: string;
@@ -12,25 +17,29 @@ type Props = {
 
 export function FavoritesSearchSection({ query, onChangeQuery }: Props) {
   const theme = useTheme();
-  const border = brandCyanBorder(theme.dark);
+  const border = favoritesCardBorder(theme);
+  const warm = favoritesWarmBackground(theme);
+  const field = favoritesSearchFieldColors(theme);
 
   return (
     <Surface
       elevation={1}
       style={[styles.searchWrap, { backgroundColor: theme.colors.surface, borderColor: border }]}>
-      <View style={[styles.searchClip, { backgroundColor: theme.colors.secondaryContainer }]}>
-        <Searchbar
-          placeholder="Search saved recipes…"
-          value={query}
-          onChangeText={onChangeQuery}
-          style={styles.search}
-          elevation={0}
-          autoCapitalize="none"
-          autoCorrect={false}
-          iconColor={theme.colors.onSecondaryContainer}
-          inputStyle={{ color: theme.colors.onSurface }}
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-        />
+      <View style={styles.searchOverflowClip}>
+        <View style={[styles.searchStrip, { backgroundColor: warm }]}>
+          <Searchbar
+            placeholder="Search saved recipes…"
+            value={query}
+            onChangeText={onChangeQuery}
+            style={styles.search}
+            elevation={0}
+            autoCapitalize="none"
+            autoCorrect={false}
+            iconColor={field.iconColor}
+            inputStyle={{ color: field.inputColor }}
+            placeholderTextColor={field.placeholderColor}
+          />
+        </View>
       </View>
     </Surface>
   );
@@ -41,9 +50,13 @@ const styles = StyleSheet.create({
     borderRadius: UI.searchRadius,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  searchClip: {
+  /** Clipping on `View`, not `Surface`, so elevation shadow renders correctly. */
+  searchOverflowClip: {
     borderRadius: UI.searchRadius,
     overflow: 'hidden',
+  },
+  searchStrip: {
+    borderRadius: UI.searchRadius,
   },
   search: {
     margin: 0,

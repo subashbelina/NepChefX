@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { FlatList, type ListRenderItemInfo, Platform, StyleSheet, View } from 'react-native';
-import { Snackbar } from 'react-native-paper';
+import { Snackbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RecipeCardListItem } from '@/features/recipes/components/recipe-card-block';
@@ -15,6 +15,7 @@ function recipeKeyExtractor(item: Recipe) {
 }
 
 export default function FavoritesScreen() {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { recipes, toggleFavorite, exportBackup, importBackup } = useRecipes();
   const [query, setQuery] = useState('');
@@ -73,7 +74,7 @@ export default function FavoritesScreen() {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.content, { paddingTop: Math.max(insets.top, 10) + 8 }]}>
         <FavoritesHeader savedCount={favorites.length} onImport={onImport} onExport={onExport} />
         <FavoritesSearchSection query={query} onChangeQuery={setQuery} />

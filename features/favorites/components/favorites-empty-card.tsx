@@ -3,9 +3,9 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Surface, Text, useTheme } from 'react-native-paper';
 
-import { Brand } from '@/constants/brand-colors';
-import { brandCyanBorder } from '@/constants/brand-chrome';
 import { UI } from '@/constants/ui-layout';
+
+import { favoritesCardBorder, favoritesEmptyCopy, favoritesWarmBackground } from '../favorites-chrome';
 
 type Props = {
   /** True when search is active but no rows match. */
@@ -14,27 +14,21 @@ type Props = {
 
 export function FavoritesEmptyCard({ hasQuery }: Props) {
   const theme = useTheme();
-  const border = brandCyanBorder(theme.dark);
+  const border = favoritesCardBorder(theme);
+  const warm = favoritesWarmBackground(theme);
+  const copy = favoritesEmptyCopy(theme);
 
   return (
     <Surface
       elevation={0}
-      style={[
-        styles.emptyCard,
-        {
-          backgroundColor: theme.colors.secondaryContainer,
-          borderColor: border,
-        },
-      ]}>
-      <View style={[styles.emptyIcon, { backgroundColor: theme.colors.primaryContainer }]}>
-        <MaterialCommunityIcons name="heart-outline" size={22} color={Brand.red} />
+      style={[styles.emptyCard, { backgroundColor: warm, borderColor: border }]}>
+      <View style={[styles.emptyIcon, { backgroundColor: theme.colors.primary }]}>
+        <MaterialCommunityIcons name="heart-outline" size={22} color={theme.colors.onPrimary} />
       </View>
-      <Text variant="titleSmall" style={{ textAlign: 'center', color: theme.colors.onSecondaryContainer }}>
+      <Text variant="titleSmall" style={[styles.title, { color: copy.title }]}>
         {hasQuery ? 'No matches in Favorites' : 'No favorites yet'}
       </Text>
-      <Text
-        variant="bodySmall"
-        style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center', opacity: 0.92 }}>
+      <Text variant="bodySmall" style={[styles.body, { color: copy.body, opacity: copy.bodyMutedOpacity }]}>
         {hasQuery
           ? 'Try different keywords or clear the search.'
           : 'Tap the heart on any recipe card to save it here.'}
@@ -59,4 +53,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  title: { textAlign: 'center', fontWeight: '700' },
+  body: { textAlign: 'center' },
 });

@@ -2,8 +2,14 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { IconButton, Surface, TextInput, useTheme } from 'react-native-paper';
 
-import { brandCyanBorder } from '@/constants/brand-chrome';
+import { brandOrangeBorder } from '@/constants/brand-chrome';
 import { UI } from '@/constants/ui-layout';
+
+import {
+  aiComposerFieldOutline,
+  aiComposerStripBackground,
+  aiComposerToolIcon,
+} from '../ai-chrome';
 
 type Props = {
   draft: string;
@@ -27,7 +33,10 @@ export function AiComposerBar({
   onToggleMic,
 }: Props) {
   const theme = useTheme();
-  const border = brandCyanBorder(theme.dark);
+  const outerBorder = brandOrangeBorder(theme.dark);
+  const stripBg = aiComposerStripBackground(theme);
+  const fieldOutline = aiComposerFieldOutline(theme);
+  const canUseTools = aiReady && !busy;
 
   return (
     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', default: undefined })}>
@@ -37,49 +46,53 @@ export function AiComposerBar({
           styles.composer,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: border,
+            borderColor: outerBorder,
           },
         ]}>
-        <View style={[styles.inputShell, { backgroundColor: theme.colors.secondaryContainer }]}>
-          <View style={styles.leftTools}>
-            <IconButton
-              icon="camera"
-              onPress={onTakePhoto}
-              disabled={!aiReady || busy}
-              accessibilityLabel="Take photo"
-              iconColor={theme.colors.secondary}
-              style={styles.toolBtn}
-            />
-            <IconButton
-              icon={isRecording ? 'microphone' : 'microphone-outline'}
-              onPress={onToggleMic}
-              disabled={!aiReady || busy}
-              accessibilityLabel="Voice input"
-              iconColor={isRecording ? theme.colors.secondary : theme.colors.onSecondaryContainer}
-              style={styles.toolBtn}
-            />
+        <View style={styles.composerOverflowClip}>
+          <View style={styles.composerPad}>
+            <View style={[styles.inputShell, { backgroundColor: stripBg }]}>
+              <View style={styles.leftTools}>
+                <IconButton
+                  icon="camera"
+                  onPress={onTakePhoto}
+                  disabled={!canUseTools}
+                  accessibilityLabel="Take photo"
+                  iconColor={aiComposerToolIcon(theme, { active: false })}
+                  style={styles.toolBtn}
+                />
+                <IconButton
+                  icon={isRecording ? 'microphone' : 'microphone-outline'}
+                  onPress={onToggleMic}
+                  disabled={!canUseTools}
+                  accessibilityLabel={isRecording ? 'Stop recording' : 'Voice input'}
+                  iconColor={aiComposerToolIcon(theme, { active: isRecording })}
+                  style={styles.toolBtn}
+                />
+              </View>
+              <TextInput
+                mode="outlined"
+                value={draft}
+                onChangeText={onChangeDraft}
+                placeholder="Ingredients or ask for a surprise recipe…"
+                multiline
+                outlineColor={fieldOutline.idle}
+                activeOutlineColor={fieldOutline.focused}
+                style={styles.input}
+                textColor={theme.colors.onPrimaryContainer}
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                editable={canUseTools}
+              />
+              <IconButton
+                icon="send"
+                onPress={onSend}
+                disabled={!canUseTools || !draft.trim()}
+                loading={busy}
+                accessibilityLabel="Send"
+                iconColor={theme.colors.primary}
+              />
+            </View>
           </View>
-          <TextInput
-            mode="outlined"
-            value={draft}
-            onChangeText={onChangeDraft}
-            placeholder="Ingredients or ask for a surprise recipe…"
-            multiline
-            outlineColor={theme.dark ? 'rgba(93, 213, 232, 0.45)' : 'rgba(0, 172, 193, 0.35)'}
-            activeOutlineColor={theme.colors.secondary}
-            style={styles.input}
-            textColor={theme.colors.onSurface}
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            editable={aiReady && !busy}
-          />
-          <IconButton
-            icon="send"
-            onPress={onSend}
-            disabled={!aiReady || busy || !draft.trim()}
-            loading={busy}
-            accessibilityLabel="Send"
-            iconColor={theme.colors.secondary}
-          />
         </View>
       </Surface>
     </KeyboardAvoidingView>
@@ -91,9 +104,12 @@ const styles = StyleSheet.create({
     margin: UI.screenPadding,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 8,
+  },
+  composerOverflowClip: {
+    borderRadius: 18,
     overflow: 'hidden',
   },
+  composerPad: { padding: 8 },
   inputShell: {
     flexDirection: 'row',
     alignItems: 'flex-end',

@@ -1,9 +1,10 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Surface, Text, useTheme } from 'react-native-paper';
+import { Button, Surface, Text, useTheme } from 'react-native-paper';
 
-import { brandCyanBorder } from '@/constants/brand-chrome';
+import { brandPrimaryPillHairline } from '@/constants/brand-chrome';
 
+import { aiBubbleChrome } from '../ai-chrome';
 import type { ChatMessage } from '../chat-model';
 
 type Props = {
@@ -13,59 +14,40 @@ type Props = {
 
 export function AiChatMessageRow({ item, onSaveRecipe }: Props) {
   const theme = useTheme();
-  const cyanBorder = brandCyanBorder(theme.dark);
-
+  const chrome = aiBubbleChrome(theme, item.role);
   const isUser = item.role === 'user';
   const isSystem = item.role === 'system';
-
-  const bubbleBg = isSystem
-    ? theme.colors.secondaryContainer
-    : isUser
-      ? theme.colors.primaryContainer
-      : theme.colors.surface;
-  const bubbleText = isSystem
-    ? theme.colors.onSecondaryContainer
-    : isUser
-      ? theme.colors.onPrimaryContainer
-      : theme.colors.onSurface;
-  const bubbleBorder = isUser ? theme.colors.outlineVariant : cyanBorder;
 
   return (
     <View style={[styles.row, isUser ? styles.rowRight : styles.rowLeft]}>
       <Surface
-        elevation={isSystem ? 0 : 1}
+        elevation={chrome.elevation}
         style={[
           styles.bubble,
           {
-            backgroundColor: bubbleBg,
-            borderColor: bubbleBorder,
+            backgroundColor: chrome.backgroundColor,
+            borderColor: chrome.borderColor,
           },
           isUser ? styles.userBubble : null,
           isSystem ? styles.systemBubble : null,
         ]}>
-        <Text variant="bodyMedium" style={{ color: bubbleText, lineHeight: 20 }}>
+        <Text variant="bodyMedium" style={{ color: chrome.textColor, lineHeight: 20 }}>
           {item.text}
         </Text>
 
         {item.role === 'assistant' && item.recipe ? (
-          <View style={styles.bubbleActions}>
-            <Surface
-              elevation={0}
-              style={[
-                styles.savePill,
-                {
-                  backgroundColor: theme.colors.secondaryContainer,
-                  borderColor: cyanBorder,
-                },
-              ]}>
-              <Text
-                onPress={() => onSaveRecipe(item)}
-                variant="labelLarge"
-                style={{ color: theme.colors.onSecondaryContainer }}>
-                Save recipe
-              </Text>
-            </Surface>
-          </View>
+          <Button
+            mode="contained"
+            compact
+            onPress={() => onSaveRecipe(item)}
+            accessibilityLabel="Save this recipe to your library"
+            buttonColor={theme.colors.primary}
+            textColor={theme.colors.onPrimary}
+            style={[styles.saveBtn, { borderColor: brandPrimaryPillHairline(theme.dark) }]}
+            contentStyle={styles.saveBtnContent}
+            labelStyle={styles.saveBtnLabel}>
+            Save recipe
+          </Button>
         ) : null}
       </Surface>
     </View>
@@ -85,11 +67,14 @@ const styles = StyleSheet.create({
   },
   userBubble: { borderTopRightRadius: 8 },
   systemBubble: { alignSelf: 'center', maxWidth: '100%', borderRadius: 14 },
-  bubbleActions: { marginTop: 10, flexDirection: 'row', justifyContent: 'flex-start' },
-  savePill: {
-    borderRadius: 999,
+  saveBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
+  saveBtnContent: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  saveBtnLabel: { fontWeight: '700' },
 });

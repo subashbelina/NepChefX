@@ -239,7 +239,7 @@ export default function AiChatScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <AppHeader
         title="AI"
         right={
@@ -248,7 +248,7 @@ export default function AiChatScreen() {
             onPress={() => setCreative((v) => !v)}
             disabled={!aiReady || busy}
             accessibilityLabel="Toggle variation"
-            iconColor={creative ? theme.colors.secondary : theme.colors.onSurfaceVariant}
+            iconColor={creative ? theme.colors.primary : theme.colors.onSurfaceVariant}
           />
         }
       />
